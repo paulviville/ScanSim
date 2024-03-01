@@ -58,6 +58,8 @@ loader.load( './LeePerrySmith.glb', function ( gltf ) {
 	mesh.geometry.computeBoundsTree();
 	console.log(mesh)
 
+
+
 	// let bvhHelper = new MeshBVHHelper(mesh)
 	// bvhHelper.color.set( 0xE91E63 );
 	// bvhHelper.depth = 20
@@ -73,10 +75,11 @@ raycaster.setFromCamera(new THREE.Vector2(0, 0), camera)
 
 console.log(raycaster)
 
-const lidarPos = new THREE.Vector3(-0.6, 0, 1);
+const lidarPos = new THREE.Vector3(-0.5, -0.1, 1);
 lidarPos.normalize().multiplyScalar(0.7);
 /// TODO create position from angle Z lidar/origin 
 
+const ratio = 1.71;
 const lidar0 = new THREE.PerspectiveCamera( 50, 1.71, 0.5, 4 );
 lidar0.position.copy(lidarPos);
 lidar0.lookAt(0,0,0)
@@ -112,7 +115,7 @@ pointCloud.createEmbedding(pointCloud.vertex)
 const pointCloudPosition = pointCloud.addAttribute(pointCloud.vertex, "position");
 
 const pointCloudRenderer = new Renderer(pointCloud);
-pointCloudRenderer.vertices.create({size: 0.0025}).addTo(scene);
+pointCloudRenderer.vertices.create({size: 0.0006125}).addTo(scene);
 console.log(pointCloudRenderer.vertices.mesh)
 
 const pointCloud1 = new IncidenceGraph()
@@ -120,7 +123,7 @@ pointCloud1.createEmbedding(pointCloud1.vertex)
 const pointCloud1Position = pointCloud1.addAttribute(pointCloud1.vertex, "position");
 
 const pointCloud1Renderer = new Renderer(pointCloud1);
-pointCloud1Renderer.vertices.create({size: 0.0025, color: new THREE.Color(0x00FF00)}).addTo(scene);
+pointCloud1Renderer.vertices.create({size: 0.0006125, color: new THREE.Color(0x00FF00)}).addTo(scene);
 console.log(pointCloud1Renderer.vertices.mesh)
 
 
@@ -143,23 +146,40 @@ function updatePoints() {
 
 const guiParams = {
 	pointer: new THREE.Vector2,
+	showMesh: function() {
+		mesh.visible = !mesh.visible;
+	},
+	filter: true,
+	noise: false,
 
 	castRay: function() {
 		raycaster.setFromCamera(this.pointer, lidar0);
 		const intersections = raycaster.intersectObject(mesh);
-
 		if(intersections[0]) {
-			addPoint(intersections[0].point.clone());
+			const point = intersections[0].point.clone()
+			if(this.noise) {
+				const dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+				const dir = raycaster.ray.direction.clone().multiplyScalar(dist);
+				point.add(dir);
+			}
+
+			addPoint(point);
+			// console.log(intersections[0])
+			// addPoint(intersections[0].point.clone().addScaledVector(dir, intersections[0]));
 		}
 		else {
-			addPoint(raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 2))
+			if(!this.filter)
+				addPoint(raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 2))
 		}
 	},
 
-	step: 0.015,
+	resolution: 200,
+
 	castRayGrid: function () {
-		for(let i = -1; i < 1; i += this.step) {
-			for(let j = -1; j < 1; j += this.step) {
+		const stepW = 2.0 / this.resolution;
+		const stepH = stepW / ratio;
+		for(let i = -1; i < 1; i += stepH) {
+			for(let j = -1; j < 1; j += stepW) {
 				this.pointer.set(i, j);
 				this.castRay()
 			}	
@@ -173,16 +193,26 @@ const guiParams = {
 		const intersections = raycaster.intersectObject(mesh);
 
 		if(intersections[0]) {
-			addPoint1(intersections[0].point.clone());
+			const point = intersections[0].point.clone()
+			if(this.noise) {
+				const dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+				const dir = raycaster.ray.direction.clone().multiplyScalar(dist);
+				point.add(dir);
+			}
+
+			addPoint1(point);
 		}
 		else {
-			addPoint1(raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 2))
+			if(!this.filter)
+				addPoint1(raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, 2))
 		}
 	},
 
 	castRayGrid1: function () {
-		for(let i = -1; i < 1; i += this.step) {
-			for(let j = -1; j < 1; j += this.step) {
+		const stepW = 2.0 / this.resolution;
+		const stepH = stepW / ratio;
+		for(let i = -1; i < 1; i += stepH) {
+			for(let j = -1; j < 1; j += stepW) {
 				this.pointer.set(i, j);
 				this.castRay1()
 			}	
@@ -195,10 +225,12 @@ const guiParams = {
 };
 
 const gui = new GUI();
-gui.add(guiParams, "castRay")
+gui.add(guiParams, "showMesh")
 gui.add(guiParams, "castRayGrid")
 gui.add(guiParams, "castRayGrid1")
-gui.add(guiParams, "step", 0.01, 0.1, 0.005);
+gui.add(guiParams, "filter")
+gui.add(guiParams, "noise")
+gui.add(guiParams, "resolution", 100, 1000, 1);
 gui.add(guiParams.pointer, "x", -1, 1, 0.05);
 gui.add(guiParams.pointer, "y", -1, 1, 0.05);
 
