@@ -32,9 +32,9 @@ scene.add(axesHelper)
 const grid0 = new THREE.GridHelper(1, 10)
 scene.add(grid0);
 
-const grid1 = new THREE.GridHelper(1, 10)
-grid1.lookAt(0, 1, 0)
-scene.add(grid1);
+// const grid1 = new THREE.GridHelper(1, 10)
+// grid1.lookAt(0, 1, 0)
+// scene.add(grid1);
 
 const ambient = new THREE.HemisphereLight( 0xffffff, 0x999999, 2 );
 scene.add( ambient );
@@ -57,7 +57,7 @@ loader.load( './LeePerrySmith.glb', function ( gltf ) {
 
 	mesh.geometry.computeBoundsTree();
 	console.log(mesh)
-
+	
 
 
 	// let bvhHelper = new MeshBVHHelper(mesh)
@@ -115,7 +115,7 @@ pointCloud.createEmbedding(pointCloud.vertex)
 const pointCloudPosition = pointCloud.addAttribute(pointCloud.vertex, "position");
 
 const pointCloudRenderer = new Renderer(pointCloud);
-pointCloudRenderer.vertices.create({size: 0.0006125}).addTo(scene);
+pointCloudRenderer.vertices.create({size: 0.00036125}).addTo(scene);
 console.log(pointCloudRenderer.vertices.mesh)
 
 const pointCloud1 = new IncidenceGraph()
@@ -123,7 +123,7 @@ pointCloud1.createEmbedding(pointCloud1.vertex)
 const pointCloud1Position = pointCloud1.addAttribute(pointCloud1.vertex, "position");
 
 const pointCloud1Renderer = new Renderer(pointCloud1);
-pointCloud1Renderer.vertices.create({size: 0.0006125, color: new THREE.Color(0x00FF00)}).addTo(scene);
+pointCloud1Renderer.vertices.create({size: 0.00036125, color: new THREE.Color(0x00FF00)}).addTo(scene);
 console.log(pointCloud1Renderer.vertices.mesh)
 
 
@@ -140,6 +140,7 @@ function addPoint1(p) {
 
 
 function updatePoints() {
+	console.log(pointCloud.nbCells(pointCloud.vertex))
 	pointCloudRenderer.vertices.update();
 	pointCloud1Renderer.vertices.update();
 }
@@ -151,6 +152,8 @@ const guiParams = {
 	},
 	filter: true,
 	noise: false,
+	accumulate: false,
+	accumulation: 1,
 
 	castRay: function() {
 		raycaster.setFromCamera(this.pointer, lidar0);
@@ -158,14 +161,21 @@ const guiParams = {
 		if(intersections[0]) {
 			const point = intersections[0].point.clone()
 			if(this.noise) {
-				const dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+
+				let dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+				
+				if(this.accumulate){
+					for(let i = 1; i < this.accumulation; ++i) {
+						dist += intersections[0].distance * (0.04 * Math.random() - 0.02);
+					}
+					dist /= this.accumulation;
+				}
+
 				const dir = raycaster.ray.direction.clone().multiplyScalar(dist);
 				point.add(dir);
 			}
 
 			addPoint(point);
-			// console.log(intersections[0])
-			// addPoint(intersections[0].point.clone().addScaledVector(dir, intersections[0]));
 		}
 		else {
 			if(!this.filter)
@@ -195,7 +205,15 @@ const guiParams = {
 		if(intersections[0]) {
 			const point = intersections[0].point.clone()
 			if(this.noise) {
-				const dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+				let dist = intersections[0].distance * (0.04 * Math.random() - 0.02);
+				
+				if(this.accumulate){
+					for(let i = 1; i < this.accumulation; ++i) {
+						dist += intersections[0].distance * (0.04 * Math.random() - 0.02);
+					}
+					dist /= this.accumulation;
+				}
+
 				const dir = raycaster.ray.direction.clone().multiplyScalar(dist);
 				point.add(dir);
 			}
@@ -230,7 +248,9 @@ gui.add(guiParams, "castRayGrid")
 gui.add(guiParams, "castRayGrid1")
 gui.add(guiParams, "filter")
 gui.add(guiParams, "noise")
+gui.add(guiParams, "accumulate")
 gui.add(guiParams, "resolution", 100, 1000, 1);
+gui.add(guiParams, "accumulation", 1, 1000, 1);
 gui.add(guiParams.pointer, "x", -1, 1, 0.05);
 gui.add(guiParams.pointer, "y", -1, 1, 0.05);
 
